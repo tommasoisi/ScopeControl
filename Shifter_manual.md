@@ -70,14 +70,15 @@ A quick guide to acuire data with the DPO7254 Tektronix oscilloscope, convert th
   
   
   ### Raw-data 2 root-tree conversion <br />
+  ### Raw-data 2 root-tree conversion <br />
 To reconstruct root files from the RAW '.wfm' files:
 - ssh username@lxplus.cern.ch
 - cd /YOURWORKINGAREA
 - git clone 
 - cd /Tektronix_DPO7254Control/Reconstruction
 - source ../includes/CMSTimingSetup.sh
-- source run_conversion.sh ## takes all the file not yet converted and convert them
-* The file are in the folder $FNAL_SCOPE_DIR 
+- python conversion.py /eos/cms/store/group/phys_susy/razor/FNAL_TB_1811/Scope_standalone/RAW/run_scope{}/
 
-  
+* The input files are in the folder $FNAL_SCOPE_DIR (/eos/cms/store/group/phys_susy/razor/FNAL_TB_1811/Scope_standalone/RAW/run_scope{}/)
+* The output files are in the folder /eos/cms/store/group/phys_susy/razor/FNAL_TB_1811/Scope_standalone/ROOT/
 
