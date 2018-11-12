@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 FNAL_SCOPE_DIR=/eos/cms/store/group/phys_susy/razor/FNAL_TB_1811/Scope_standalone
