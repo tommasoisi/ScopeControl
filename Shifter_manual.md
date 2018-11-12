@@ -62,7 +62,7 @@ A quick guide to acuire data with the DPO7254 Tektronix oscilloscope, convert th
        * The Caltech analysis script work with root trees that contain a fixed (1000) number of samples! Do not change the horizontal scale (10e-9 s) if you wanna produce compatible files! 
    
    
-  ### In case the disks are to be mounted<br />
+  ### In case the disks have to be mounted<br />
   1. `sudo sshfs -o allow_other YOURCERNUSERNAME@lxplus.cern.ch:/eos/cms/store/group/phys_susy/razor/FNAL_TB_1811/Scope_standalone/ /home/daq/fnal_tb_18_11/data/`
   2. `sudo su`  
   3. `kinit YOURFNALUSERNAME@FNAL.GOV`
