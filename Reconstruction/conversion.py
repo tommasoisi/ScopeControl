@@ -73,7 +73,7 @@ t.Branch( 'time', time, 'time[1][1000]/F')
 def openfiles(path):
     dirs = os.listdir(path)
     ch_set = set()
-    run_set = set()
+    run_set = []
     prerun_name = ""
     for file in dirs:
         file_split = file.split('_')
@@ -82,7 +82,7 @@ def openfiles(path):
         run_num = int(file_split[len(file_split)-2])
         if run_num < 0:
             print >> sys.stderr, "error: invalid run number"
-        run_set.update(run_num_str)
+        run_set.append(run_num_str)
         #file_split[len(file_split)-1]
         chan_num = int(file_split[len(file_split)-1][2])
         ch_set.update(file_split[len(file_split)-1][2])
@@ -94,47 +94,52 @@ def openfiles(path):
     max(run_num)
 
 numbChannels, numbFiles, fname = openfiles(path)
+print(numbFiles)
+print(fname)
 if numbChannels != 4:
     raise Exception("Problem with the number of channels")
 
-for fnum in range(1,numbFiles+1):
+for fnum in range(1,numbFiles/numbChannels +1):
+    try:
+        print("I'm reading: %s%i_CH1.wfm"%(fname,fnum))
+        volts_ch1, tstart_ch1, tscale_ch1, tfrac_ch1, tdatefrac_ch1, tdate_ch1 = tekwfm.read_wfm("%s%i_CH1.wfm"%(fname,fnum))
+        print("I'm reading: %s%i_CH2.wfm"%(fname,fnum))
+        volts_ch2, tstart_ch2, tscale_ch2, tfrac_ch2, tdatefrac_ch2, tdate_ch2 = tekwfm.read_wfm("%s%i_CH2.wfm"%(fname,fnum))
+        print("I'm reading: %s%i_CH3.wfm"%(fname,fnum))
+        volts_ch3, tstart_ch3, tscale_ch3, tfrac_ch3, tdatefrac_ch3, tdate_ch3 = tekwfm.read_wfm("%s%i_CH3.wfm"%(fname,fnum))
+        print("I'm reading: %s%i_CH4.wfm"%(fname,fnum))
+        volts_ch4, tstart_ch4, tscale_ch4, tfrac_ch4, tdatefrac_ch4, tdate_ch4 = tekwfm.read_wfm("%s%i_CH4.wfm"%(fname,fnum))
+    except:
+        print("Skipping....")
+    else:
+        if tfrac_ch1.all() != tfrac_ch2.all() and tfrac_ch1.all() != tfrac_ch3.all() and tfrac_ch1.all() != tfrac_ch4.all():
+            raise Exception("times don't match between channels!")
+        if tscale_ch1 != tscale_ch2 and tscale_ch1 != tscale_ch3 and tscale_ch1 != tscale_ch4:
+            raise Exception("time scales don't match between channels!")
 
-    print("I'm reading: %s%i_CH1.wfm"%(fname,fnum))
-    volts_ch1, tstart_ch1, tscale_ch1, tfrac_ch1, tdatefrac_ch1, tdate_ch1 = tekwfm.read_wfm("%s%i_CH1.wfm"%(fname,fnum))
-    print("I'm reading: %s%i_CH2.wfm"%(fname,fnum))
-    volts_ch2, tstart_ch2, tscale_ch2, tfrac_ch2, tdatefrac_ch2, tdate_ch2 = tekwfm.read_wfm("%s%i_CH2.wfm"%(fname,fnum))
-    print("I'm reading: %s%i_CH3.wfm"%(fname,fnum))
-    volts_ch3, tstart_ch3, tscale_ch3, tfrac_ch3, tdatefrac_ch3, tdate_ch3 = tekwfm.read_wfm("%s%i_CH3.wfm"%(fname,fnum))
-    print("I'm reading: %s%i_CH4.wfm"%(fname,fnum))
-    volts_ch4, tstart_ch4, tscale_ch4, tfrac_ch4, tdatefrac_ch4, tdate_ch4 = tekwfm.read_wfm("%s%i_CH4.wfm"%(fname,fnum))
+        print("I'm filling the tree: %s"%(outputfile))
+        samples = 1000
+        tstop_ch1 = samples * tscale_ch1 + tstart_ch1
+        t0 = np.linspace(tstart_ch1, tstop_ch1, num=samples, endpoint=False)
 
-    if tfrac_ch1.all() != tfrac_ch2.all() and tfrac_ch1.all() != tfrac_ch3.all() and tfrac_ch1.all() != tfrac_ch4.all():
-        raise Exception("times don't match between channels!")
-    if tscale_ch1 != tscale_ch2 and tscale_ch1 != tscale_ch3 and tscale_ch1 != tscale_ch4:
-        raise Exception("time scales don't match between channels!")
+        evt_offset = len(tfrac_ch1)*(fnum-1)
+        time_temp = np.zeros(volts_ch1.shape)
+        for frame, subsample in enumerate(tfrac_ch1):
+            toff = subsample * tscale_ch1
+            time_temp[:samples,frame] = t0 + toff
 
-    print("I'm filling the tree: %s"%(outputfile))
-    samples = 1000
-    tstop_ch1 = samples * tscale_ch1 + tstart_ch1
-    t0 = np.linspace(tstart_ch1, tstop_ch1, num=samples, endpoint=False)
+        for evt_local in range(len(tfrac_ch1)):
+            i_evt[0] = evt_local + evt_offset
+            # print(i_evt[0])
 
-    evt_offset = len(tfrac_ch1)*(fnum-1)
-    time_temp = np.zeros(volts_ch1.shape)
-    for frame, subsample in enumerate(tfrac_ch1):
-        toff = subsample * tscale_ch1
-        time_temp[:samples,frame] = t0 + toff
+            channel[0] = volts_ch1[:samples,evt_local]
+            channel[1] = volts_ch2[:samples,evt_local]
+            channel[2] = volts_ch3[:samples,evt_local]
+            channel[3] = volts_ch4[:samples,evt_local]
+            time[0] = time_temp[:samples,evt_local]
 
-    for evt_local in range(len(tfrac_ch1)):
-        i_evt[0] = evt_local + evt_offset
-        # print(i_evt[0])
+            t.Fill()
 
-        channel[0] = volts_ch1[:samples,evt_local]
-        channel[1] = volts_ch2[:samples,evt_local]
-        channel[2] = volts_ch3[:samples,evt_local]
-        channel[3] = volts_ch4[:samples,evt_local]
-        time[0] = time_temp[:samples,evt_local]
-
-        t.Fill()
 
 f.Write()
 f.Close()
