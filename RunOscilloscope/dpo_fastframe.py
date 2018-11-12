@@ -13,17 +13,10 @@ import argparse
 import signal
 import os
 import shutil
+import datetime
 from shutil import copy
 
 stop_asap = False
-
-def signal_handler(sig,frame):
-    global stop_asap
-    stop_asap = True
-    print("Emergency stop: Closing")
-signal.signal(signal.SIGINT,signal_handler)
-signal.signal(signal.SIGTERM,signal_handler)
-
 
 import visa
 
@@ -87,7 +80,9 @@ print(dpo.query('*idn?'))
 parser = argparse.ArgumentParser(description='Run info.')
 
 parser.add_argument('--totalNumber', metavar='tot', type=int,help='totalNumber of data point',required=True)
-parser.add_argument('--numFrames',metavar='Frames', type=str,default = 500, help='numFrames (default 20000)',required=False)
+parser.add_argument('--numFrames',metavar='Frames', type=str,default = 500, help='numFrames (default 500)',required=False)
+parser.add_argument('--trigCh',metavar='trigCh', type=str, default='AUX',help='trigger Channel (default Aux (-0.1V))',required=False)
+parser.add_argument('--trig',metavar='trig', type=float, default= -0.05, help='trigger value in V (default Aux (-0.05V))',required=False)
 
 args = parser.parse_args()
 
@@ -99,10 +94,10 @@ numFrames = int(args.numFrames) # number of frames for each file
 totalNumber = int(args.totalNumber) # total number of frames
 
 #vertical scale
-vScale_ch1 = 0.01 # in Volts
-vScale_ch2 = 0.01 # in Volts
-vScale_ch3 = 0.01 # in Volts
-vScale_ch4 = 0.01 # in Volts
+vScale_ch1 = 0.05 # in Volts for division
+vScale_ch2 = 0.01 # in Volts for division
+vScale_ch3 = 0.01 # in Volts for division
+vScale_ch4 = 0.01 # in Volts for division
 
 #vertical position
 vPos_ch1 = 4  # in Divisions
@@ -111,9 +106,10 @@ vPos_ch3 = 4  # in Divisions
 vPos_ch4 = 4  # in Divisions
 
 #trigger
-trigCh = 'CH2' # string with trigger channel number [CH1..CH4]
-trigLevel =   - 0.04
+trigCh = (args.trigCh) # string with trigger channel number [CH1..CH4]
+trigLevel = float(args.trig)
 
+date = datetime.datetime.now()
 
 
 if totalNumber < numFrames:
@@ -130,6 +126,9 @@ with open('runNumber.txt') as file:
     runNumber = int(file.read())
 print('######## Starting RUN {} ########\n'.format(runNumber))
 print('---------------------\n')
+print(date)
+print('---------------------\n')
+
 
 with open('runNumber.txt','w') as file:
     file.write(str(runNumber+1))
@@ -139,6 +138,21 @@ with open('runNumber.txt','w') as file:
 # The scope save runs localy on a shared folder with
 path = "c:/ETL_Nov2018/run_scope{}".format(runNumber)
 dpo.write('filesystem:mkdir "{}"'.format(path))
+log_path = "Logbook.txt"
+
+
+#Write in the log file
+logf = open(log_path,"a+")
+
+
+logf.write("\n\n#### SCOPE LOGBOOK -- RUN NUMBER {} ####\n\n".format(runNumber))
+logf.write("Date:\t{}\n".format(date))
+logf.write("---------------------------------------------------------\n")
+logf.write("Total number of triggers acquired: {} \n".format(totalNumber))
+logf.write("Number of triggers per file: {} \n".format(numFrames))
+logf.write("---------------------------------------------------------\n\n")
+
+
 
 """#################SCOPE HORIZONTAL SETUP#################"""
 # dpo setup
@@ -149,6 +163,10 @@ dpo.write('horizontal:fastframe:count {}'.format(numFrames))
 
 print("# SCOPE HORIZONTAL SETUP #")
 print('Horizontal scale set to {} for division\n'.format(hScale))
+
+logf.write("HORIZONTAL SETUP\n")
+logf.write('- Horizontal scale set to {} s for division\n\n'.format(hScale))
+
 
 """#################SCOPE CHANNELS BANDWIDTH#################"""
 #'full' set the bandwidth to 2.5GHz(HW) IMPORTANT: the vertical scale has to be at least 10mV/division to use this feature!
@@ -170,10 +188,16 @@ dpo.write('ch3:position {}'.format(vPos_ch3))
 dpo.write('ch4:position {}'.format(vPos_ch4))
 
 print("# SCOPE VERTICAL SETUP #")
-print('CH1: verical scale set to {} for division'.format(vScale_ch1))
-print('CH2: verical scale set to {} for division'.format(vScale_ch2))
-print('CH3: verical scale set to {} for division'.format(vScale_ch3))
-print('CH4: verical scale set to {} for division'.format(vScale_ch4))
+print('CH1: verical scale set to {} V for division'.format(vScale_ch1))
+print('CH2: verical scale set to {} V for division'.format(vScale_ch2))
+print('CH3: verical scale set to {} V for division'.format(vScale_ch3))
+print('CH4: verical scale set to {} V for division'.format(vScale_ch4))
+
+logf.write("VERTICAL SETUP\n")
+logf.write('- CH1: verical scale set to {} V for division\n'.format(vScale_ch1))
+logf.write('- CH2: verical scale set to {} V for division\n'.format(vScale_ch2))
+logf.write('- CH3: verical scale set to {} V for division\n'.format(vScale_ch3))
+logf.write('- CH4: verical scale set to {} V for division\n\n'.format(vScale_ch4))
 
 
 """#################TRIGGER SETUP#################"""
@@ -181,13 +205,19 @@ dpo.write('TRIGGER:A:TYPE EDGE;:TRIGGER:A:LEVEL %f;:TRIGGER:A:EDGE:SOURCE %s'%(t
 dpo.write('TRIGGER:A:EDGE:SLOPE:%s FALL;:TRIGGER:A:MODE NORMAL'%(trigCh))
 # dpo.write(':TRIGGER:A:EDGE:SOURCE LINE') #TO trigger on the line (60Hz)
 
+trigprint='%.3f'%(trigLevel)
 
 print("# TRIGGER SETUP #")
-print('Trigger scale set to %f\n'%(trigLevel))
+print('Trigger scale set to %s V\n'%(trigprint))
+
+logf.write("TRIGGER SETUP\n")
+logf.write('- Trigger Channel set to %s\n'%(trigCh))
+logf.write('- Trigger scale set to %s V\n\n\n\n'%(trigprint))
+
 
 
 """#################TERMINATIONS SETUP#################"""
-dpo.write(':CH1:TER 1;:CH2:TER 50;:CH3:TER 50;:CH4:TER 50');
+dpo.write(':CH1:TER 50;:CH2:TER 50;:CH3:TER 50;:CH4:TER 50');
 
 print("# TERMINATIONS SETUP #")
 print('All The Terminations set to 50 ohm.\n')
@@ -235,8 +265,8 @@ while (i*numFrames<totalNumber) and stop_asap==False:
 import time              
     
     
-path_ftbf = "/Tektronix/run_scope{}".format(runNumber)
-path_lxplus = ("/lxplus/Scope_standalone/RAW/run_scope%d"%(runNumber))
+path_ftbf = "/Tektronix/run_scope{}".format(runNumber) #otsdaq path (shared folder with the scope)
+path_lxplus = ("/lxplus/Scope_standalone/RAW/run_scope%d"%(runNumber)) # lxplus folder mounted on otsdaq
 
 while len(os.listdir(path_ftbf)) < 4*i: 
     time.sleep(1)
@@ -244,9 +274,9 @@ while len(os.listdir(path_ftbf)) < 4*i:
 print('Start copying the file on lxplus....')
     
 shutil.copytree(path_ftbf,path_lxplus)  
-     
-print('Waveform copied.\n')
 
+print('Waveforms copied.\n')
+print('Ending Run {}.\n'.format(runNumber))
 
 print("\n\n\n ********  DID YOU UPDATE THE LOGBOOK AND SPREADSHEET?? ******** \n\n")
 print("LogBook: https://docs.google.com/document/d/1PVd6DxdxLFYFbk_dmaxY3c2C5qMCfLAmNJD_r8xbN_4/edit#")
