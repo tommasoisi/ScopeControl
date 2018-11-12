@@ -117,5 +117,4 @@ def decode_header(header_bytes):
     wfm_info['avilable_values'] = allbytes // bps
     wfm_info['pre_values'] = dpre // bps
     wfm_info['post_values'] = (allbytes - dpost) // bps
-    return wfm_info
-
+return wfm_info
