@@ -70,7 +70,6 @@ A quick guide to acuire data with the DPO7254 Tektronix oscilloscope, convert th
   
   
   ### Raw-data 2 root-tree conversion <br />
-  ### Raw-data 2 root-tree conversion <br />
 To reconstruct root files from the RAW '.wfm' files:
 - ssh username@lxplus.cern.ch
 - cd /YOURWORKINGAREA
